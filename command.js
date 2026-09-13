@@ -1,18 +1,9 @@
 const yts = require("yt-search");
 const ytdl = require("@distube/ytdl-core");
 const { getLastStatusFor } = require("./lib/status");
+const { askTutor } = require("./lib/tutor");
 
 const PREFIX = "!";
-
-// Simple built-in coding-help content. Swap this out for a call to an LLM
-// API (e.g. the Anthropic API) if you want real interactive tutoring —
-// see README for how to wire that in.
-const CODE_TIPS = {
-  start: "New to coding? Start with Python or JavaScript. Try freeCodeCamp.org or CS50 (cs50.harvard.edu) — both are free and beginner-friendly.",
-  js: "JavaScript basics: variables (let/const), functions, arrays/objects, and async/await for anything that takes time (like network requests).",
-  python: "Python basics: indentation matters (no braces!), lists/dicts, functions with def, and f-strings like f'{name} is cool'.",
-  git: "Git basics: `git init`, `git add .`, `git commit -m \"msg\"`, `git push`. Think of commits as save points for your project.",
-};
 
 async function handleMessage(sock, msg) {
   const jid = msg.key.remoteJid;
@@ -42,7 +33,7 @@ async function handleMessage(sock, msg) {
             "!pp <name or number> — get someone's profile picture\n" +
             "!savestatus — reply to a saved status to have it resent to you\n" +
             "!play <song name> — send an audio clip\n" +
-            "!code [start|js|python|git] — quick coding tips\n" +
+            "!code <question> — ask the AI coding & engineering tutor anything\n" +
             "\nStatus auto-like is on by default (see lib/status.js).",
         },
         { quoted: msg }
@@ -51,9 +42,18 @@ async function handleMessage(sock, msg) {
     }
 
     case "code": {
-      const topic = (args[0] || "start").toLowerCase();
-      const tip = CODE_TIPS[topic] || CODE_TIPS.start;
-      await sock.sendMessage(jid, { text: tip }, { quoted: msg });
+      const question = args.join(" ");
+      if (!question) {
+        await sock.sendMessage(
+          jid,
+          { text: "Ask me anything! e.g. !code explain recursion, or !code what is a race condition" },
+          { quoted: msg }
+        );
+        break;
+      }
+      await sock.sendMessage(jid, { text: "Thinking... 🤔" }, { quoted: msg });
+      const answer = await askTutor(jid, question);
+      await sock.sendMessage(jid, { text: answer }, { quoted: msg });
       break;
     }
 
@@ -122,4 +122,4 @@ async function handleMessage(sock, msg) {
   }
 }
 
-module.exports = { handleMessage }; 
+module.exports = { handleMessage };
