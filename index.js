@@ -53,15 +53,20 @@ async function startBot() {
   });
 
   // If we want a pairing code and aren't already registered, request one.
+  // Baileys needs a moment for the socket to actually open before this call
+  // works — requesting immediately causes a "Connection Closed" error.
   if (LINK_PHONE_NUMBER && !sock.authState.creds.registered) {
-    try {
-      const code = await sock.requestPairingCode(LINK_PHONE_NUMBER.replace(/\D/g, ""));
-      pairingCode = code;
-      connectionStatus = "pairing";
-      console.log(`Pairing code: ${code} (or visit /pair) — enter it in WhatsApp > Linked Devices > Link with phone number.`);
-    } catch (err) {
-      console.error("Couldn't request pairing code:", err.message);
-    }
+    setTimeout(async () => {
+      try {
+        const rawCode = await sock.requestPairingCode(LINK_PHONE_NUMBER.replace(/\D/g, ""));
+        const code = rawCode?.match(/.{1,4}/g)?.join("-") || rawCode;
+        pairingCode = code;
+        connectionStatus = "pairing";
+        console.log(`Pairing code: ${code} (or visit /qr) — enter it in WhatsApp > Linked Devices > Link with phone number.`);
+      } catch (err) {
+        console.error("Couldn't request pairing code:", err.message);
+      }
+    }, 3000);
   }
 
   sock.ev.on("creds.update", saveCreds);
